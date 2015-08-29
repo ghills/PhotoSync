@@ -33,43 +33,53 @@ def get_picture_date(fpath):
     return timestamp.strftime('%Y-%m-%d')
 
 def mangle_filename(filename):
-	base, ext = os.path.splitext(filename)
-	return( str(uuid.uuid4()) + ext )
-	
+    base, ext = os.path.splitext(filename)
+    return( str(uuid.uuid4()) + ext )
+    
 def create_destination_folder(path):
-	try:
-		logging.info('os.makedirs({})'.format(path))
-		if not dry_run:
-			os.makedirs(path)
-	except:
-		logging.exception('Error creating output directory {}'.format(path))
-			
+    try:
+        logging.info('os.makedirs({})'.format(path))
+        if not dry_run:
+            os.makedirs(path)
+    except:
+        logging.exception('Error creating output directory {}'.format(path))
+            
 def move_file(fpath, outdir):
     if not os.path.exists(outdir):
         create_destination_folder(outdir)
 
-    try:
-		filename = os.path.split(fpath)[1]
-		if os.path.exists(os.path.join(outdir, filename)):
-			logging.info('{} already exists'.format(os.path.join(outdir, filename)))
-			# check if the file is the same first
-			if filecmp.cmp(fpath, os.path.join(outdir, filename)):
-				logging.info('existing file equivalent.')
-				logging.info('os.remove({})'.format(fpath))
-				if not dry_run:
-					os.remove(fpath)
-			else:
-				# same filename, different contents. Rename it
-				filename = mangle_filename(filename)
-				logging.info('shutil.move({}, {})'.format(fpath, os.path.join(outdir, filename)))
-				if not dry_run:
-					shutil.move(fpath, os.path.join(outdir, filename))
-		else:
-			logging.info('shutil.move({}, {})'.format(fpath, outdir))
-			if not dry_run:
-				shutil.move(fpath, outdir)
-    except:
-        logging.exception('Error moving {} to {}'.format(fpath, outdir))
+    filename = os.path.split(fpath)[1]
+    outpath = os.path.join(outdir, filename)
+    
+    # assume we are going to move the file
+    # unless set otherwise
+    do_move = True
+
+    # deal with existing file in that folder with the same name
+    # if contents are the same, delete the import one as we already have it
+    # if contents differ, rename the incoming file with a uuid and dump it in
+    if os.path.exists(outpath):
+        logging.info('{} already exists'.format(os.path.join(outdir, filename)))
+        # check if the file is the same first
+        if filecmp.cmp(fpath, os.path.join(outdir, filename)):
+            logging.info('existing file equivalent.')
+            logging.info('os.remove({})'.format(fpath))
+            do_move = False
+            if not dry_run:
+                os.remove(fpath)
+        else:
+            # same filename, different contents. Rename destination
+            outpath = os.path.join(outdir, mangle_filename(filename))
+    
+    # the only reason we wouldn't want to move the file is if we already
+    # deleted the imported one because the file is identical to what we already have
+    if do_move:
+        try:
+            logging.info('shutil.move({}, {})'.format(fpath, outpath))
+            if not dry_run:
+                shutil.move(fpath, outpath)
+        except:
+            logging.exception('Error moving {} to {}'.format(fpath, outpath))
 
 def get_current_year_str():
     return str(datetime.now().year)
