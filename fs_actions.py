@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 
+from functools import wraps
 from log_action import echoDecorator
 
 class dryRunDecorator(object):
@@ -9,6 +10,7 @@ class dryRunDecorator(object):
         self._dry_run = dry_run
 
     def __call__(self, fn):
+        @wraps(fn)
         def wrapped(*v, **k):
             if not self._dry_run:
                 return fn(*v, **k)
@@ -20,15 +22,15 @@ class FSActionContext(object):
     def __init__(self, dry_run=False):
         log = echoDecorator(logger=logging.info)
         dryrun = dryRunDecorator(dry_run=dry_run)
-        self.remove = log(dryrun(self.remove), name='remove')
-        self.move = log(dryrun(self.move), name='remove')
-        self.makedirs = log(dryrun(self.makedirs), name='remove')
+        self.remove = log(dryrun(self.remove))
+        self.move = log(dryrun(self.move))
+        self.makedirs = log(dryrun(self.makedirs))
 
-    def remove(path):
-        os.remove(fpath)
+    def remove(self, path):
+        os.remove(path)
 
-    def move(path):
+    def move(self, fpath, outpath):
         shutil.move(fpath, outpath)
 
-    def makedirs(path):
+    def makedirs(self, path):
         os.makedirs(path)
